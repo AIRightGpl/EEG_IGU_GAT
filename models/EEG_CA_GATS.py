@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch_geometric.nn import global_mean_pool
-from modules.EEG_MultiChan_filter import EEG_MCf
+from modules.EEG_MultiChanAttention import EEG_MCf
 from modules.GATs_module import GATs
 from modules.Multi_Proception_Layer import MLP
 

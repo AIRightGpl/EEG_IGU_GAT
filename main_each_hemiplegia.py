@@ -14,8 +14,7 @@ if __name__ == '__main__':
     from dataloader.hemiplegia_loader import form_onesub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_wzPreTrained import EEG_GAT_moduled
-    from models.EEG_GlobalAT_pretrain import EEG_GAT_ablation
+    from models.EEG_GAT_modules import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
     clip_length = 1000

@@ -24,7 +24,7 @@ if __name__ == '__main__':
     from dataloader.public_109ser_loader import form_onesub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_wzPreTrained import EEG_GAT_moduled
+    from models.EEG_GAT_modules import EEG_GAT_moduled
     # from models.EEG_GlobalAT_pretrain import EEG_GAT_ablation
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
@@ -129,7 +129,7 @@ if __name__ == '__main__':
 #     out, attention_weight = model(eegdata, edge_index, batch)
 #   File "/home/qinyz/anaconda3/envs/qyz1/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1110, in _call_impl
 #     return forward_call(*input, **kwargs)
-#   File "/home/qinyz/Brain_EEGCN/models/EEG_GAT_wzPreTrained.py", line 25, in forward
+#   File "/home/qinyz/Brain_EEGCN/models/EEG_GAT_modules.py", line 25, in forward
 #     x_embed = global_mean_pool(x, batch=batch)
 #   File "/home/qinyz/anaconda3/envs/qyz1/lib/python3.8/site-packages/torch_geometric/nn/glob/glob.py", line 52, in global_mean_pool
 #     return scatter(x, batch, dim=0, dim_size=size, reduce='mean')

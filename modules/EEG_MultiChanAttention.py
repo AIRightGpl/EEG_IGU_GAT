@@ -114,7 +114,8 @@ class EEG_MCf(nn.Module):
         # x_aggra = self.depthAggri(x_aggra)
         # x_aggra = torch.squeeze(x_aggra, dim=1)
 
-        x_aggra = self.CA(x_aggra)
+        x_weight = self.CA(x_aggra)
+        x_aggra = x_aggra * x_weight
         x_spars = self.depthConv1(x_aggra)
         x_spars = self.bnd_2(x_spars)
         x_spars = self.prlu_d(x_spars)

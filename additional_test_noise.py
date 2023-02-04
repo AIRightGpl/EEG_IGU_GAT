@@ -14,8 +14,7 @@ if __name__ == '__main__':
     from dataloader.noisy_data_loader import form_onesub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_wzPreTrained import EEG_GAT_moduled
-    from models.EEG_GlobalAT_pretrain import EEG_GAT_ablation
+    from models.EEG_GAT_modules import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
     clip_length = 160
@@ -33,7 +32,7 @@ if __name__ == '__main__':
         ##============================================================================================================##
         # load the model to device "EEG_GAT_moduled" is the model for person
 
-        this_model = EEG_GAT_ablation(clip_length).to(device)
+        this_model = EEG_GAT_moduled(clip_length).to(device)
 
         ##============================================================================================================##
         # try to load the parameter from pretrained model

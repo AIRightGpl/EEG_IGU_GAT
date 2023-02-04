@@ -25,7 +25,7 @@ if __name__ == '__main__':
     from dataloader.public_109ser_loader import form_onesub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_wzPreTrained import EEG_GAT_moduled
+    from models.EEG_CA_GATS import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
     clip_length = 160
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
         ##============================================================================================================##
         # initiate the logging and the optimizer
-        tra_wtr, tes_wtr = logging_Initiation("subject{}testsize{}_".format(n_sub, test_size), logroot='./log')
+        tra_wtr, tes_wtr = logging_Initiation("subject{}testsize{}_".format(n_sub, test_size), logroot='./log/pub_sg')
         lossfunc = torch.nn.CrossEntropyLoss()
         optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5,
                                     weight_decay=1e-4)  # note, when initiating optimizer,

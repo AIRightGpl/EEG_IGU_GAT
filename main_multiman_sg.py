@@ -24,7 +24,7 @@ if __name__ == '__main__':
     from dataloader.eegmotormovement_loader import Construct_Dataset_crosssub
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_wzPreTrained import EEG_GAT_moduled
+    from models.EEG_GAT_modules import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters
     clip_length = 400
