@@ -23,7 +23,7 @@ if __name__ == '__main__':
     from dataloader.lowlimbmotorimagery_loader import form_onesub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_self import EEG_GAT_moduled
+    from models.EEG_GAT_modules import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
     clip_length = 400
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         ##============================================================================================================##
         # load the model to device "EEG_GAT_moduled" is the model for person
 
-        this_model = EEG_GAT_moduled(clip_length).to(device)
+        this_model = EEG_GAT_moduled(clip_length, n_class=3).to(device)
 
         ##============================================================================================================##
         # try to load the parameter from pretrained model
