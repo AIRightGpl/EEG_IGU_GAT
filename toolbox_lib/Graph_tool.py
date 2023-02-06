@@ -288,7 +288,7 @@ class Graph_Updater():
         self.embedding = None
 
     def append_edge_value(self, edge_attention_w: torch.Tensor, batch_size: int, chan_num: int = 64):
-        pick = int(edge_attention_w[0].shape[1] / batch_size)
+        pick = int(edge_attention_w[0].shape[1] / batch_size) - chan_num
         if self.edge_value == None:
             edge_index = edge_attention_w[0][:, :pick]
             edge_value = edge_attention_w[1][:pick, :].mean(dim=1)
@@ -349,7 +349,7 @@ class Graph_Updater():
 
     def edgevalue2adj(self, prior_mat=None):
         assert self.edge_value is not None, 'edge attention values is empty, try \'append_edge_value\' before computing'
-        ed_value = self.edge_value.mean(dim=0)
+        ed_value = self.edge_value.to_dense().mean(dim=0)
         if self.meth == 'sg':
             weight_matrix = self.__swm_attention_edgeprob(ed_value, prior_mat)
         elif self.meth == 'EDR':

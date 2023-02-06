@@ -15,6 +15,7 @@ def train_epoch(model, trainset: torch.utils.data.DataLoader, edge_idx, lossfunc
         bz, _, _ = eegdata.shape
         edge_index, batch = replicate_graph_batch(edge_idx, bz, device, node_num=n_chan)
         out, attention_weight = model(eegdata, edge_index, batch)
+        ## why batch-size=200 and edge_idx(2,896) edge_index(2,179200) attention_weight(2)(2,192000)(192000,4)
         label = nn.functional.one_hot(torch.tensor(data[1] - 1, dtype=torch.long), n_class).to(device)  ## 4
         # label = (data.y-1).long()
         loss = lossfunc(out, label.float())
