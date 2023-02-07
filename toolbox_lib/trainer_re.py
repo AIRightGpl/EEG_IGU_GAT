@@ -17,7 +17,7 @@ def train_epoch(model, trainset: torch.utils.data.DataLoader, edge_idx, lossfunc
         edge_index, batch = replicate_graph_batch(edge_idx, bz, device, node_num=n_chan)
         out, attention_weight = model(eegdata, edge_index, batch)
         # batch-size=200 and edge_idx(2,896) edge_index(2,179200) attention_weight(2)(2,192000)(192000,4), cuz self-loop
-        label = nn.functional.one_hot(torch.tensor(data[1] - 1, dtype=torch.long), n_class).to(device)  ## 4
+        label = nn.functional.one_hot((data[1] - 1).long(), n_class).to(device)  ## 4  #torch.tensor(data[1] - 1, dtype=torch.long)
         # label = (data.y-1).long()
         loss = lossfunc(out, label.float())
         loss.backward()
@@ -49,7 +49,7 @@ def test_epoch(model, testset: torch.utils.data.DataLoader, edge_idx, lossfunc, 
                     handle.append_node_embedding(attribute, bz)
             # GAT in pyg will compute self-loop attention weight so for 0.75 there be 3088 edges
             pred = out.argmax(dim=1)
-            label = nn.functional.one_hot(torch.tensor(data[1] - 1, dtype=torch.long), n_class).to(device)
+            label = nn.functional.one_hot((data[1] - 1).long(), n_class).to(device)
             # for MSEloss  ##4
             # label = (data.y-1).long() # for crossEntropy_loss for it will automatically transfer from index to one hot
             loss = lossfunc(out, label.float())

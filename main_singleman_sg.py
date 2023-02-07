@@ -62,8 +62,10 @@ if __name__ == '__main__':
         edge_idx, adj_mat = Initiate_regulgraph(input_channels=64, node_degree=14)
         ##------------------------------------------------------------------------------------------------------------##
 
-        # load EEG channel distance matrix
+        # load EEG channel distance matrix, and apply linear scale to distance matrix to assure each element of the mat
+        # within range [0, 1], Thus, P(u, v) = D(u, v) * p(u, v) ranges from 0 to 1
         dist_atr = torch.tensor(loadtxt('64chans_distmat.csv', delimiter=','), device=device)
+        dist_atr = (dist_atr - dist_atr.min()) / (dist_atr.max() - dist_atr.min())
 
         # apply dataloader to dataset
         train_set = Myset(trainset, trainlab)

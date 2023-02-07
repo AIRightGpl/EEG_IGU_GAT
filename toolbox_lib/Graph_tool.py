@@ -304,7 +304,7 @@ class Graph_Updater():
     def append_node_embedding(self, embedding: torch.Tensor, batch_size: int):
         if self.embedding == None:
             if batch_size >= 1:
-                self.embedding = torch.stack(torch.tensor_split(embedding, batch_size, dim=0))  ## align with mini-batch
+                self.embedding = torch.stack(torch.tensor_split(embedding, batch_size, dim=0)).squeeze()  ## align with mini-batch
                 # which is applied in model the embedding should be (#batch*node, #hidden(embedding)) and .detach()
             else:
                 self.embedding = embedding
@@ -382,7 +382,7 @@ class Graph_Updater():
             else:
                 weight_matrix = self.__swm_edgeprob(embedds) * prior_mat
             randmat = torch.rand(weight_matrix.shape[0], weight_matrix.shape[0], dtype=torch.float32,
-                                 device=self.device)
+                                 device=self.dev)
             randmat = KeepHTM(randmat)
             mask = weight_matrix.ge(randmat)
             expect_adj = higher_trangular_matrix_2_symmetric(mask.int())
