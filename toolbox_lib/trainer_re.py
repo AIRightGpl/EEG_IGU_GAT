@@ -8,14 +8,15 @@ from .set_logger import logger
 from .Graph_tool import AdjMat2pygedge_index
 
 
-def train_epoch(model, trainset: torch.utils.data.DataLoader, edge_idx, lossfunc, optimizer, device, n_class=4, n_chan=64):
+def train_epoch(model, trainset: torch.utils.data.DataLoader, edge_idx, lossfunc, optimizer, device,
+                n_class=4, n_chan=64):
     model.train()
     for index, data in enumerate(trainset):
         eegdata = data[0].to(device)
         bz, _, _ = eegdata.shape
         edge_index, batch = replicate_graph_batch(edge_idx, bz, device, node_num=n_chan)
         out, attention_weight = model(eegdata, edge_index, batch)
-        ## why batch-size=200 and edge_idx(2,896) edge_index(2,179200) attention_weight(2)(2,192000)(192000,4)
+        # batch-size=200 and edge_idx(2,896) edge_index(2,179200) attention_weight(2)(2,192000)(192000,4), cuz self-loop
         label = nn.functional.one_hot(torch.tensor(data[1] - 1, dtype=torch.long), n_class).to(device)  ## 4
         # label = (data.y-1).long()
         loss = lossfunc(out, label.float())
@@ -25,7 +26,8 @@ def train_epoch(model, trainset: torch.utils.data.DataLoader, edge_idx, lossfunc
     return attention_weight
 
 
-def test_epoch(model, testset: torch.utils.data.DataLoader, edge_idx, lossfunc, device, n_class=4, n_chan=64, flag=False, handle=None):
+def test_epoch(model, testset: torch.utils.data.DataLoader, edge_idx, lossfunc, device, n_class=4, n_chan=64, flag=False
+               , handle=None):
     model.eval()
 
     correct = 0
@@ -47,11 +49,13 @@ def test_epoch(model, testset: torch.utils.data.DataLoader, edge_idx, lossfunc, 
                     handle.append_node_embedding(attribute, bz)
             # GAT in pyg will compute self-loop attention weight so for 0.75 there be 3088 edges
             pred = out.argmax(dim=1)
-            label = nn.functional.one_hot(torch.tensor(data[1] - 1, dtype=torch.long), n_class).to(device)  ## for MSEloss  ##4
-            # label = (data.y-1).long()  ## for crossEntropy_loss for it will automatically transfer from index to one hot
+            label = nn.functional.one_hot(torch.tensor(data[1] - 1, dtype=torch.long), n_class).to(device)
+            # for MSEloss  ##4
+            # label = (data.y-1).long() # for crossEntropy_loss for it will automatically transfer from index to one hot
             loss = lossfunc(out, label.float())
-            correct += int((pred == (data[1] - 1).to(device)).sum())  ## something wrong with the acc
+            correct += int((pred == (data[1] - 1).to(device)).sum())  # something wrong with the acc
             total_count += bz
+
     return correct / total_count, loss.item()
 
 

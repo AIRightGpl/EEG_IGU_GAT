@@ -43,7 +43,7 @@ if __name__ == '__main__':
         # trainset, trainlab, testset, testlab = Create_TrainTest(dataset, labelset, testsize=test_size, randstat=0)
         trainset, trainlab, testset, testlab = form_onesub_set(n_sub, size=clip_length, step=clip_step)
         # edge_idx = Initiate_graph(trainset, pt=0.25)  ## sparse rate = 0.75
-        edge_idx = Initiate_fullgraph(input_channels=32)
+        edge_idx, _ = Initiate_fullgraph(input_channels=32)
         train_set = Myset(trainset, trainlab)
         test_set = Myset(testset, testlab)
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)

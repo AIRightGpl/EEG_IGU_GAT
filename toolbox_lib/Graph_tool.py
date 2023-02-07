@@ -18,13 +18,13 @@ def Initiate_regulgraph(input_channels: int = 64, node_degree: int = 12, randoms
     rg = nx.random_graphs.random_regular_graph(node_degree, input_channels, seed=randomseed)
     adj_mat = torch.from_numpy(nx.to_numpy_array(rg))
     edge_index = torch.nonzero(adj_mat).T
-    return edge_index
+    return edge_index, adj_mat
 
 
 def Initiate_fullgraph(input_channels: int = 64) -> torch.Tensor:
     full = torch.full((input_channels, input_channels), 1)
     edge_index = torch.transpose(torch.nonzero(full), 1, 0)
-    return edge_index
+    return edge_index, full
 
 
 def Initiate_graph(lst_samples: List[torch.Tensor], pt=0.75, self_loop=True, method='proportional') -> torch.Tensor:
@@ -41,19 +41,18 @@ def Initiate_graph(lst_samples: List[torch.Tensor], pt=0.75, self_loop=True, met
     else:
         pass
     edge_index = torch.transpose(torch.nonzero(sparsed), 1, 0)
-    return edge_index
+    return edge_index, sparsed
 
 
 def Initiate_clasgraph(lst_samples: List[torch.Tensor], lst_label: List[torch.Tensor], pt=0.75, self_loop=True,
                        method='maximum_spanning') -> torch.Tensor:
     assert len(lst_samples) == len(lst_label), 'invalidate sample & label, the length is not align'
-    n_classes = len(set(lst_label))
     data_dict = dict.fromkeys(set(lst_label), [])
     idx_dict = dict.fromkeys(set(lst_label))
     for i in range(len(lst_samples)):
         data_dict[lst_label[i]].append(lst_samples[i])
     for ind, key in enumerate(data_dict):
-        idx_dict[key] = Initiate_graph(data_dict[key], pt=pt, self_loop=self_loop, method=method)
+        idx_dict[key], _ = Initiate_graph(data_dict[key], pt=pt, self_loop=self_loop, method=method)
 
     return idx_dict
 
@@ -327,7 +326,12 @@ class Graph_Updater():
         return prob
 
     def __swm_attention_edgeprob(self, edge_value, param):
-        prob = torch.div(param, torch.add(edge_value ^ (-1), param))
+        rec_ed_v = 1.0 / edge_value
+        recip_edge_value = torch.where(torch.isinf(rec_ed_v), torch.full_like(rec_ed_v, 0), rec_ed_v)
+        prob = param // torch.add(recip_edge_value, param)
+        # but this method is not applicable, due to edge_value is sparse thus a lot of 0 s and the reciprocal create Inf
+        # so set Inf to 0 and this method will only work on the already exist edges and node-pairs, the final result
+        # would be a more sparse graph
         return prob
 
     def __swm_edgeprob(self, embedds, para1=2, para2=0.01):
@@ -365,7 +369,7 @@ class Graph_Updater():
 
         return expect_adj
 
-    def embedding2adj(self):
+    def embedding2adj(self, prior_mat=None):
         assert self.embedding is not None, 'node embedding is empty, try \'append_node_embedding\' before computing'
         embedds = self.embedding.mean(dim=0)
         if self.meth == 'ms':
@@ -373,7 +377,10 @@ class Graph_Updater():
             bimat = sparsematrix(weight_matrix)
             expect_adj = higher_trangular_matrix_2_symmetric(bimat.int())
         elif self.meth == 'rg':
-            weight_matrix = self.__swm_edgeprob(embedds)
+            if prior_mat is None:
+                weight_matrix = self.__swm_edgeprob(embedds)
+            else:
+                weight_matrix = self.__swm_edgeprob(embedds) * prior_mat
             randmat = torch.rand(weight_matrix.shape[0], weight_matrix.shape[0], dtype=torch.float32,
                                  device=self.device)
             randmat = KeepHTM(randmat)

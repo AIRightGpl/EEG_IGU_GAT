@@ -47,7 +47,7 @@ if __name__ == '__main__':
     test_sub_list = [6, 1]
     trainset, trainlab, testset, testlab = form_multsub_set(trai_sub_list, test_sub_list, size=clip_length, step=50)
     # edge_idx = Initiate_graph(trainset, pt=0.75) ## sparse rate = 0.75
-    edge_idx = Initiate_fullgraph(input_channels=channels)
+    edge_idx, _ = Initiate_fullgraph(input_channels=channels)
     train_set = Myset(trainset, trainlab)
     test_set = Myset(testset, testlab)
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)

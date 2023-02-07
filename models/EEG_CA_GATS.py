@@ -25,4 +25,4 @@ class EEG_GAT_moduled(nn.Module):
         x_embed = global_mean_pool(x, batch=batch)
         x = self.mlp_sequence(x_embed)
 
-        return x, attention_weight
+        return x, x_embed

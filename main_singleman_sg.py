@@ -54,64 +54,94 @@ if __name__ == '__main__':
         # trainset, trainlab, testset, testlab = Create_TrainTest(dataset, labelset, testsize=test_size, randstat=0)
         trainset, trainlab, testset, testlab = form_onesub_set(n_sub, size=clip_length, step=clip_step)
 
-        # edge_idx = Initiate_graph(trainset, pt=0.75)  ## sparse rate = 0.75
-        # edge_idx = Initiate_fullgraph(input_channels=64)
-        # edge_idx = Initiate_clasgraph(trainset, trainlab, method='maximum_spanning')
-        edge_idx = Initiate_regulgraph(input_channels=64, node_degree=14)
+        # different method for graph initiation
+        ##------------------------------------------------------------------------------------------------------------##
+        # edge_idx, _ = Initiate_graph(trainset, pt=0.75)  ## sparse rate = 0.75
+        # edge_idx, _ = Initiate_fullgraph(input_channels=64)
+        # edge_idx, _ = Initiate_clasgraph(trainset, trainlab, method='maximum_spanning')
+        edge_idx, adj_mat = Initiate_regulgraph(input_channels=64, node_degree=14)
+        ##------------------------------------------------------------------------------------------------------------##
 
+        # load EEG channel distance matrix
         dist_atr = torch.tensor(loadtxt('64chans_distmat.csv', delimiter=','), device=device)
+
+        # apply dataloader to dataset
         train_set = Myset(trainset, trainlab)
         test_set = Myset(testset, testlab)
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
         test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 
         ##============================================================================================================##
-        # initiate the logging and the optimizer
+        # Initiate the logging and the optimizer
         tra_wtr, tes_wtr = logging_Initiation("subject{}testsize{}_".format(n_sub, test_size), logroot='./log/pub_sg')
         lossfunc = torch.nn.CrossEntropyLoss()
         optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5,
                                     weight_decay=1e-4)  # note, when initiating optimizer,
-        # need to specify which parameter to apply
-        best_test_acc = 0
-        graph_base = Graph_Updater(device, method='sg')
 
+        # Graph_Updater initiate here
+        graph_base = Graph_Updater(device, method='rg')
+        update_count = 0
+
+        # initiation for training
+        best_test_acc = 0
         curr_path = './saved_sg1/subject{}testsize{}'.format(n_sub, test_size)
         if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
-        edge_idx_saved = curr_path + '/' + 'edge_index.pth'
+        edge_idx_saved = curr_path + '/' + 'edge_index_ini.pth'
+        graph_ini_saved = curr_path + '/' + 'graph_Ini'
         if not os.path.exists(edge_idx_saved):
-            graph = {'edge_index': edge_idx}
-            torch.save(obj=graph, f=edge_idx_saved)
+            edge_coo = {'edge_index': edge_idx}
+            torch.save(obj=edge_coo, f=edge_idx_saved)
+        if not os.path.exists(graph_ini_saved):
+            graph_ini_saved = {'adjacent_matrix': adj_mat}
+            torch.save(obj=graph_ini_saved, f=graph_ini_saved)
+
         ##============================================================================================================##
-        # begin training, note
+        # Training process
         for i in range(500):
-            # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
-            # train_epoch is the model.train() and test_epoch is in model.eval()
+            # set flag for updating graph
             flag = i % 10 == 0
+
+            # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
+            # train_epoch apply model.train() and test_epoch apply model.eval()
             attention_weight = train_epoch(this_model, train_loader, edge_idx, lossfunc, optmizer, device)
-            train_acc, train_loss = test_epoch(this_model, train_loader, edge_idx, lossfunc, device, flag=flag, handle=graph_base)
+            # Get train result here. When flag and handle not None, the embedding/edge_value of one epoch samples will
+            # be stored in Graph_updater for computing graph
+            train_acc, train_loss = test_epoch(this_model, train_loader, edge_idx, lossfunc, device,
+                                               flag=flag, handle=graph_base)
 
             # write train result to logging
+            ##--------------------------------------------------------------------------------------------------------##
             print("train_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), train_loss,
                                                                                       train_acc))
             tra_wtr.writetxt(
                 "train_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), train_loss,
                                                                                     train_acc))
             tra_wtr.writecsv([time.time(), i, train_loss, train_acc])
-
             ##--------------------------------------------------------------------------------------------------------##
+
             # test session, test_epoch applying to test_loader
             test_acc, test_loss = test_epoch(this_model, test_loader, edge_idx, lossfunc, device)
 
             # write test result to logging
+            ##--------------------------------------------------------------------------------------------------------##
             print("test_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), test_loss,
                                                                                      test_acc))
             tes_wtr.writetxt(
                 "test_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), test_loss,
                                                                                    test_acc))
             tes_wtr.writecsv([time.time(), i, test_loss, test_acc])
+            ##--------------------------------------------------------------------------------------------------------##
 
+            # when flag=True, update the graph with embeddings and free the space of Graph_updater
+            if flag:
+                new_adjacent_mat = graph_base.embedding2adj(prior_mat=dist_atr)
+                update_count = update_count + 1
+                curr_graph = {'adj_mat': new_adjacent_mat}
+                edge_idx_saved = curr_path + '/' + 'graph_No{}.pth'.format(update_count)
+                if not os.path.exists(edge_idx_saved):
+                    torch.save(obj=curr_graph, f=edge_idx_saved)
             # save parameter of model
-
+            ##--------------------------------------------------------------------------------------------------------##
             if test_acc >= best_test_acc + 0.05:
                 best_test_acc = test_acc
                 tim = time.strftime("%Y-%m-%d %H_%M_%S", time.localtime())

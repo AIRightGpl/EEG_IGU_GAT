@@ -46,7 +46,7 @@ if __name__ == '__main__':
     trai_sub_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     test_sub_list = [10, 11, 12, 13]
     trainset, trainlab, testset, testlab = Construct_Dataset_crosssub(trai_sub_list, test_sub_list, size=clip_length, step=clip_step)
-    edge_idx = Initiate_graph(trainset, pt=0.75) ## sparse rate = 0.75
+    edge_idx, adj_mat = Initiate_graph(trainset, pt=0.75) ## sparse rate = 0.75
     dist_atr = torch.tensor(loadtxt('64chans_distmat.csv', delimiter=','), device=device)
     train_set = Myset(trainset, trainlab)
     test_set = Myset(testset, testlab)
