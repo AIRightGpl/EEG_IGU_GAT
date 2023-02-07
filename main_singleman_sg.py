@@ -101,7 +101,7 @@ if __name__ == '__main__':
         # Training process
         for i in range(500):
             # set flag for updating graph
-            flag = i % 10 == 0
+            flag = i % 10 == 0 and i != 0
 
             # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
             # train_epoch apply model.train() and test_epoch apply model.eval()
