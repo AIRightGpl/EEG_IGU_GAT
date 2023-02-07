@@ -87,13 +87,13 @@ if __name__ == '__main__':
         curr_path = './saved_rg1/subject{}testsize{}'.format(n_sub, test_size)
         if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
         edge_idx_saved = curr_path + '/' + 'edge_index_ini.pth'
-        graph_ini_saved = curr_path + '/' + 'graph_Ini'
+        graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
         if not os.path.exists(edge_idx_saved):
             edge_coo = {'edge_index': edge_idx}
             torch.save(obj=edge_coo, f=edge_idx_saved)
         if not os.path.exists(graph_ini_saved):
-            graph_ini_saved = {'adjacent_matrix': adj_mat}
-            torch.save(obj=graph_ini_saved, f=graph_ini_saved)
+            graph_ini = {'adjacent_matrix': adj_mat}
+            torch.save(obj=graph_ini, f=graph_ini_saved)
 
         ##============================================================================================================##
         # Training process
@@ -137,7 +137,7 @@ if __name__ == '__main__':
                 new_adjacent_mat = graph_base.embedding2adj(prior_mat=dist_atr)
                 update_count = update_count + 1
                 curr_graph = {'adj_mat': new_adjacent_mat}
-                edge_idx_saved = curr_path + '/' + 'graph_No{}.pth'.format(update_count)
+                edge_idx_saved = curr_path + '/' + 'graph_No{}_acc{}.pth'.format(update_count, test_acc)
                 if not os.path.exists(edge_idx_saved):
                     torch.save(obj=curr_graph, f=edge_idx_saved)
             # save parameter of model

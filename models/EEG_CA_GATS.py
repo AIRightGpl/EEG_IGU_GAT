@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch_geometric.nn import global_mean_pool
+from torch_geometric.utils import to_dense_batch
 from modules.EEG_MultiChanAttention import EEG_MCf
 from modules.GATs_module import GATs
 from modules.Multi_Proception_Layer import MLP
@@ -22,7 +23,8 @@ class EEG_GAT_moduled(nn.Module):
 
         x = self.mcf_sequence(x)
         x, attention_weight = self.GATs_sequence(x, edge_index)
-        x_embed = global_mean_pool(x, batch=batch)
-        x = self.mlp_sequence(x_embed)
+        embeddings = to_dense_batch(x, batch)[0].detach()
+        x_gembed = global_mean_pool(x, batch=batch)
+        x = self.mlp_sequence(x_gembed)
 
-        return x, x_embed
+        return x, embeddings

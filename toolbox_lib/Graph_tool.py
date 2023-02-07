@@ -311,7 +311,7 @@ class Graph_Updater():
         else:
             if batch_size >= 1:
                 self.embedding = torch.cat(
-                    (self.embedding, torch.stack(torch.tensor_split(embedding, batch_size, dim=0))))
+                    (self.embedding, torch.stack(torch.tensor_split(embedding, batch_size, dim=0)).squeeze()))
             else:
                 self.embedding = torch.cat((self.embedding, embedding))
 
