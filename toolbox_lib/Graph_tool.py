@@ -367,9 +367,11 @@ class Graph_Updater():
         mask = weight_matrix.ge(randmat)
         expect_adj = higher_trangular_matrix_2_symmetric(mask.int())
 
+        # clear the storage
+        self.clear_attr()
         return expect_adj
 
-    def embedding2adj(self, prior_mat=None):
+    def embedding2adj(self, prior_mat=None, yta=-1):
         assert self.embedding is not None, 'node embedding is empty, try \'append_node_embedding\' before computing'
         embedds = self.embedding.mean(dim=0)
         if self.meth == 'ms':
@@ -380,7 +382,9 @@ class Graph_Updater():
             if prior_mat is None:
                 weight_matrix = self.__swm_edgeprob(embedds)
             else:
-                weight_matrix = self.__swm_edgeprob(embedds) * prior_mat
+                recip_dis_pri = prior_mat ** yta
+                recip_dis = torch.where(torch.isinf(recip_dis_pri), torch.full_like(recip_dis_pri, 0), recip_dis_pri)
+                weight_matrix = self.__swm_edgeprob(embedds) * recip_dis
             randmat = torch.rand(weight_matrix.shape[0], weight_matrix.shape[0], dtype=torch.float32,
                                  device=self.dev)
             randmat = KeepHTM(randmat)
@@ -389,6 +393,8 @@ class Graph_Updater():
         else:
             print('unsupported node embedding to adj method')
 
+        # clear the storage
+        self.clear_attr()
         return expect_adj
 
         # pro_adj = torch.zeros([ed_value.shape[0], ed_value.shape[0]], dtype=torch.float32, device=self.device)
