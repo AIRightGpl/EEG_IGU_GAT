@@ -6,7 +6,7 @@ import math
 from copy import deepcopy
 from matplotlib import pyplot as plt
 from copy import deepcopy
-from typing import List
+from typing import List, Union
 import numpy as np
 import networkx as nx
 from networkx.algorithms.tree import maximum_spanning_tree
@@ -69,8 +69,8 @@ def test(func):
     return warpper()
 
 
-def replicate_graph_batch(edge_index: torch.Tensor, batch_size: int, device, node_num: int = 64) -> torch.Tensor:
-    edge_index = edge_index.to(device)     ## the setting of step may occur error, because the torch.sparse_coo_tensor
+def replicate(edge_index: torch.Tensor, batch_size: int, device, node_num: int = 64) -> torch.Tensor:
+    edge_index = edge_index.to(device)  ## the setting of step may occur error, because the torch.sparse_coo_tensor
     # step = torch.max(edge_index) + 1       ## throw error of imcompetanc max-indice:63 but found 65
     step = node_num
     batch = []
@@ -83,6 +83,20 @@ def replicate_graph_batch(edge_index: torch.Tensor, batch_size: int, device, nod
             new = torch.cat((new, atb), dim=1)
     new = new.to(device)
     batch = torch.tensor(batch, dtype=torch.int64, device=device)
+
+    return new, batch
+
+
+def replicate_graph_batch(edge_index: Union[torch.Tensor, dict], batch_size: int, device, node_num: int = 64) -> torch.Tensor:
+    if isinstance(edge_index, torch.Tensor):
+        new, batch = replicate(edge_index, batch_size, device, node_num=node_num)
+    elif isinstance(edge_index, dict):
+        new = dict.fromkeys(edge_index)
+        batch = dict.fromkeys(edge_index)
+        for key in edge_index.keys():
+            new[key], batch[key] = replicate(edge_index[key], batch_size, device, node_num=node_num)
+    else:
+        print('error in \'replicate_graph_batch\' unsupported \'edge_index\' type')
     return new, batch
 
 
