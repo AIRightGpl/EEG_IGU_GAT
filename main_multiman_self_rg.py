@@ -18,46 +18,49 @@ import torch
 
 if __name__ == '__main__':
     import time
+    from numpy import loadtxt
     from toolbox_lib.trainer_re import logging_Initiation, train_epoch, test_epoch
-    from toolbox_lib.Graph_tool import Initiate_graph, Initiate_fullgraph
-    # from dataloader.eegmotormovement_loader import Construct_Dataset_crosssub
-    from dataloader.public_109ser_loader import form_multsub_set
+    from toolbox_lib.Graph_tool import Initiate_fullgraph, Initiate_clasgraph, Initiate_regulgraph, Graph_Updater
+    from dataloader.lowlimbmotorimagery_loader import form_multsub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
     from models.EEG_GAT_modules import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters
-    clip_length = 160
-    clip_step = 20
-    batch_size = 200
-    channels = 64
+    clip_length = 400
+    clip_step = 50
+    batch_size = 100
+    channels = 32
 
     ##================================================================================================================##
     # Here specify the device and load the model to device("EEG_GAT_moduled" is the model that devide
     device = torch.device('cuda:2' if torch.cuda.is_available() else "cpu")
-    this_model = EEG_GAT_moduled(clip_length).to(device)
+    this_model = EEG_GAT_moduled(clip_length, n_class=3).to(device)
 
     ##================================================================================================================##
     # try to load the parameter from pretrained model
-    # mod_dict = torch.load('./saved_fullcross/tratra10332402234959435655399681669111055410930tes4577607478/bestmodel.pth')
-    # mcf_para = mod_dict['model']['mcf']
-
-
-
+    # this_model.mcf_sequence.load_state_dict(torch.load('.pth'), strict=True)
     # this_model.mcf_sequence.load_state_dict(torch.load('.pth'), strict=True)
 
     ##================================================================================================================##
     # prepare the train and test dataset and create dataloader
-    trai_sub_list = [103, 32, 40, 22, 34, 95, 94, 35, 6, 55, 3, 99, 68, 16, 69, 11, 105, 54, 109, 30]
-    test_sub_list = [45, 77, 60, 74, 78]
-    trai_sub_list.sort()
-    test_sub_list.sort()
-    # trainset, trainlab, testset, testlab = Construct_Dataset_crosssub(trai_sub_list, test_sub_list, size=clip_length,
-    # step=clip_step)
+    trai_sub_list = [0, 3, 5, 7, 8]
+    test_sub_list = [6, 1]
     trainset, trainlab, testset, testlab = form_multsub_set(trai_sub_list, test_sub_list, size=clip_length,
                                                             step=clip_step)
-    # edge_idx = Initiate_graph(trainset, pt=0.75) ## sparse rate = 0.75
-    edge_idx, _ = Initiate_fullgraph(input_channels=channels)
+    # different method for graph initiation
+    ##------------------------------------------------------------------------------------------------------------##
+    # edge_idx, _ = Initiate_graph(trainset, pt=0.75)  ## sparse rate = 0.75
+    # edge_idx, _ = Initiate_fullgraph(input_channels=64)
+    # edge_idx, _ = Initiate_clasgraph(trainset, trainlab, method='maximum_spanning')
+    edge_idx, adj_mat = Initiate_regulgraph(input_channels=channels, node_degree=8)
+    ##------------------------------------------------------------------------------------------------------------##
+
+    # load EEG channel distance matrix, and apply linear scale to distance matrix to assure each element of the mat
+    # within range [0, 1], Thus, P(u, v) = D(u, v) * p(u, v) ranges from 0 to 1
+    dist_atr = torch.tensor(loadtxt('32chans_distmat.csv', delimiter=','), device=device)
+    dist_atr = (dist_atr - dist_atr.min()) / (dist_atr.max() - dist_atr.min())
+
     train_set = Myset(trainset, trainlab)
     test_set = Myset(testset, testlab)
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -65,25 +68,40 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # initiate the logging and the optimizer
-    tra_wtr, tes_wtr = logging_Initiation("crosssubtrain20test5", logroot='./log/full_graph_cross_2')
+    tra_wtr, tes_wtr = logging_Initiation("cross_subject_self", logroot='./log/self_multi_rg')
     lossfunc = torch.nn.CrossEntropyLoss()
-    optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-4, weight_decay=1e-4)  # note, when initiating optimizer,
+    optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5, weight_decay=1e-4)  # note, when initiating optimizer,
                                                                             # need to specify which parameter to apply
     best_test_acc = 0
-    curr_path = './saved_fullcross_2/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
-        list(map(lambda x: str(x), test_sub_list)))
+
+    # Graph_Updater initiate here
+    graph_base = Graph_Updater(device, method='rg')
+    update_count = 0
+
+    curr_path = './saved_self_multi_rg/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
+        list(map(lambda x: str(x), test_sub_list))) + '1'
     if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
-    edge_idx_saved = curr_path + '/' + 'edge_index.pth'
+    edge_idx_saved = curr_path + '/' + 'edge_index_Ini.pth'
+    graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
     if not os.path.exists(edge_idx_saved):
         graph = {'edge_index': edge_idx}
         torch.save(obj=graph, f=edge_idx_saved)
+    if not os.path.exists(graph_ini_saved):
+        graph_ini = {'adjacent_matrix': adj_mat}
+        torch.save(obj=graph_ini, f=graph_ini_saved)
+
     ##================================================================================================================##
     # begin training, note
-    for i in range(800):
+    for i in range(1200):
+        # set flag for updating graph
+        flag = i % 10 == 0 #and i != 0
+
         # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
         # train_epoch is the model.train() and test_epoch is in model.eval()
-        attention_weight = train_epoch(this_model, train_loader, edge_idx, lossfunc, optmizer, device, n_class=4)
-        train_acc, train_loss = test_epoch(this_model, train_loader, edge_idx, lossfunc, device, n_class=4)
+        attention_weight = train_epoch(this_model, train_loader, edge_idx, lossfunc, optmizer, device, n_class=3,
+                                       n_chan=channels)
+        train_acc, train_loss = test_epoch(this_model, train_loader, edge_idx, lossfunc, device, n_class=3,
+                                           n_chan=channels, flag=flag, handle=graph_base)
 
         # write train result to logging
         print("train_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), train_loss,
@@ -95,7 +113,8 @@ if __name__ == '__main__':
 
         ##------------------------------------------------------------------------------------------------------------##
         # test session, test_epoch applying to test_loader
-        test_acc, test_loss = test_epoch(this_model, test_loader, edge_idx, lossfunc, device, n_class=4)
+        test_acc, test_loss = test_epoch(this_model, test_loader, edge_idx, lossfunc, device, n_class=3,
+                                         n_chan=channels)
 
         # write test result to logging
         print("test_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), test_loss,
@@ -103,6 +122,18 @@ if __name__ == '__main__':
         tes_wtr.writetxt("test_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), test_loss,
                                                                                 test_acc))
         tes_wtr.writecsv([time.time(), i, test_loss, test_acc])
+
+        # when flag=True, update the graph with embeddings and free the space of Graph_updater
+        if flag:
+            new_adjacent_mat = graph_base.embedding2adj(prior_mat=dist_atr)
+            update_count = update_count + 1
+            curr_graph = {'adj_mat': new_adjacent_mat}
+            edge_idx_saved = curr_path + '/' + 'graph_No{}_acc{}.pth'.format(update_count, test_acc)
+            if not os.path.exists(edge_idx_saved):
+                torch.save(obj=curr_graph, f=edge_idx_saved)
+
+            # change the edge_idx
+            edge_idx = torch.transpose(torch.nonzero(new_adjacent_mat), 1, 0)
 
         # save parameter of model
         if test_acc >= best_test_acc:

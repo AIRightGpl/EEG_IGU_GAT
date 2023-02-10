@@ -20,16 +20,17 @@ if __name__ == '__main__':
     import time
     from numpy import loadtxt
     from toolbox_lib.trainer_re import logging_Initiation, train_epoch, test_epoch
-    from toolbox_lib.Graph_tool import Initiate_graph, Graph_Updater
-    from dataloader.eegmotormovement_loader import Construct_Dataset_crosssub
+    from toolbox_lib.Graph_tool import Initiate_fullgraph, Initiate_clasgraph, Initiate_regulgraph, Graph_Updater
+    from dataloader.public_109ser_loader import form_multsub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_modules import EEG_GAT_moduled
+    from models.EEG_CA_GATS import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters
-    clip_length = 400
-    clip_step = 10
-    batch_size = 15
+    clip_length = 160
+    clip_step = 20
+    batch_size = 200
+    channels = 64
 
     ##================================================================================================================##
     # Here specify the device and load the model to device("EEG_GAT_moduled" is the model that devide
@@ -45,8 +46,17 @@ if __name__ == '__main__':
     # prepare the train and test dataset and create dataloader
     trai_sub_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     test_sub_list = [10, 11, 12, 13]
-    trainset, trainlab, testset, testlab = Construct_Dataset_crosssub(trai_sub_list, test_sub_list, size=clip_length, step=clip_step)
-    edge_idx, adj_mat = Initiate_graph(trainset, pt=0.75) ## sparse rate = 0.75
+    trainset, trainlab, testset, testlab = form_multsub_set(trai_sub_list, test_sub_list, size=clip_length,
+                                                            step=clip_step)
+
+    # different method for graph initiation
+    ##------------------------------------------------------------------------------------------------------------##
+    # edge_idx, _ = Initiate_graph(trainset, pt=0.75)  ## sparse rate = 0.75
+    # edge_idx, _ = Initiate_fullgraph(input_channels=64)
+    # edge_idx, _ = Initiate_clasgraph(trainset, trainlab, method='maximum_spanning')
+    edge_idx, adj_mat = Initiate_regulgraph(input_channels=64, node_degree=14)
+    ##------------------------------------------------------------------------------------------------------------##
+
     dist_atr = torch.tensor(loadtxt('64chans_distmat.csv', delimiter=','), device=device)
     train_set = Myset(trainset, trainlab)
     test_set = Myset(testset, testlab)
@@ -55,29 +65,34 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # initiate the logging, graph_updater and the optimizer
-    tra_wtr, tes_wtr = logging_Initiation("crosssub1-9train_10-13test", logroot='./log')
+    tra_wtr, tes_wtr = logging_Initiation("crosssub1-9train_10-13test", logroot='./log/multi_rg1')
     lossfunc = torch.nn.CrossEntropyLoss()
     optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-6, weight_decay=1e-4)  # note, when initiating optimizer,
                                                                             # need to specify which parameter to apply
     best_test_acc = 0
-    graph_base = Graph_Updater(device, method='sg')
+    graph_base = Graph_Updater(device, method='rg')
+    update_count = 0
 
-    curr_path = './saved_05/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
+    curr_path = './saved_multi_rg1/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
         list(map(lambda x: str(x), test_sub_list)))
     if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
     edge_idx_saved = curr_path + '/' + 'edge_index_init.pth'
+    graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
     if not os.path.exists(edge_idx_saved):
         graph = {'edge_index': edge_idx}
         torch.save(obj=graph, f=edge_idx_saved)
-
+    if not os.path.exists(graph_ini_saved):
+        graph_ini = {'adjacent_matrix': adj_mat}
+        torch.save(obj=graph_ini, f=graph_ini_saved)
     ##================================================================================================================##
     # begin training, note
-    for i in range(500):
+    for i in range(800):
         # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
         # train_epoch is the model.train() and test_epoch is in model.eval()
-        flag = i % 10 == 0 and i > 0
+        flag = i % 10 == 0 #and i > 0
         attention_weight = train_epoch(this_model, train_loader, edge_idx, lossfunc, optmizer, device)
-        train_acc, train_loss, attention_wec = test_epoch(this_model, train_loader, edge_idx, lossfunc, device, flag=flag, handle=graph_base)
+        train_acc, train_loss = test_epoch(this_model, train_loader, edge_idx, lossfunc, device,
+                                                          flag=flag, handle=graph_base)
 
         # write train result to logging
         print("train_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), train_loss,
@@ -101,8 +116,18 @@ if __name__ == '__main__':
                                                                                 test_acc))
         tes_wtr.writecsv([time.time(), i, test_loss, test_acc])
 
-        # save parameter of model
+        # when flag=True, update the graph with embeddings and free the space of Graph_updater
+        if flag:
+            new_adjacent_mat = graph_base.embedding2adj(prior_mat=dist_atr)
+            update_count = update_count + 1
+            curr_graph = {'adj_mat': new_adjacent_mat}
+            edge_idx_saved = curr_path + '/' + 'graph_No{}_acc{}.pth'.format(update_count, test_acc)
+            if not os.path.exists(edge_idx_saved):
+                torch.save(obj=curr_graph, f=edge_idx_saved)
+            # change the edge_idx
+            edge_idx = torch.transpose(torch.nonzero(new_adjacent_mat), 1, 0)
 
+        # save parameter of model
         if test_acc >= best_test_acc:
             best_test_acc = test_acc
             tim = time.strftime("%Y-%m-%d %H_%M_%S", time.localtime())
