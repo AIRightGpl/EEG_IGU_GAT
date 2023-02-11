@@ -26,8 +26,8 @@ if __name__ == '__main__':
     from models.EEG_CA_mulclaGAT_softmax import EEG_multiGAT
     ##================================================================================================================##
     # Here set the clip parameters
-    clip_length = 400
-    clip_step = 50
+    clip_length = 1000
+    clip_step = 125
     batch_size = 100
     channels = 32
 
