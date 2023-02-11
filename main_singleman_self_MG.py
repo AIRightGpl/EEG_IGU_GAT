@@ -26,8 +26,8 @@ if __name__ == '__main__':
     from models.EEG_CA_mulclaGAT_softmax import EEG_multiGAT
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
-    clip_length = 1000
-    clip_step = 125
+    clip_length = 400
+    clip_step = 50
     test_size = 0.3
     batch_size = 100
     channels = 32
@@ -75,14 +75,14 @@ if __name__ == '__main__':
         ##============================================================================================================##
         # Initiate the logging and the optimizer
         tra_wtr, tes_wtr = logging_Initiation("subject{}testsize{}_".format(n_sub, test_size),
-                                              logroot='./log/self_MG_maxspanning')
+                                              logroot='./log/self_MG1_maxspanning')
         lossfunc = torch.nn.CrossEntropyLoss()
         optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5,
                                     weight_decay=1e-4)  # note, when initiating optimizer,
 
         # initiation for training
         best_test_acc = 0
-        curr_path = './saved_self_MG_maxspanning/subject{}testsize{}'.format(n_sub, test_size)
+        curr_path = './saved_self_MG1_maxspanning/subject{}testsize{}'.format(n_sub, test_size)
         if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
         edge_idx_saved = curr_path + '/' + 'edge_index_ini.pth'
         # graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
         ##============================================================================================================##
         # Training process
-        for i in range(800):
+        for i in range(1200):
             # set flag for updating graph
             flag = i % 10 == 0 and i != 0
 

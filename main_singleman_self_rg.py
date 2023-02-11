@@ -27,8 +27,8 @@ if __name__ == '__main__':
     from models.EEG_GAT_modules import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
-    clip_length = 1000
-    clip_step = 125
+    clip_length = 400
+    clip_step = 50
     test_size = 0.3
     batch_size = 100
     channels = 32
@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
         ##============================================================================================================##
         # begin training, note
-        for i in range(800):
+        for i in range(1200):
             # set flag for updating graph
             flag = i % 10 == 0 and i != 0
 
