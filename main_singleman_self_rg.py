@@ -24,7 +24,7 @@ if __name__ == '__main__':
     from dataloader.lowlimbmotorimagery_loader import form_onesub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_modules import EEG_GAT_moduled
+    from models.EEG_CA_GATS import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
     clip_length = 400
