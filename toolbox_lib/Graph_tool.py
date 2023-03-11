@@ -14,6 +14,11 @@ from networkx.algorithms.tree import maximum_spanning_tree
 layout_BCIV2a = None
 
 
+def Linear_normalize(tensor_in: torch.Tensor) -> torch.Tensor:
+    tensor_out = (tensor_in - tensor_in.min()) / (tensor_in.max() - tensor_in.min())
+    return tensor_out
+
+
 def Initiate_regulgraph(input_channels: int = 64, node_degree: int = 12, randomseed: int = 66) -> torch.Tensor:
     rg = nx.random_graphs.random_regular_graph(node_degree, input_channels, seed=randomseed)
     adj_mat = torch.from_numpy(nx.to_numpy_array(rg))
@@ -362,7 +367,7 @@ class Graph_Updater():
         # when eta < 0 short-range connection are favored eta > 0 long-range connection are favored
         # gamma plays the same role as eta, it controls whether probability of connection altered by embedds distance
 
-        prob = dist_mat ** eta * edge_value ** gamma
+        prob = (dist_mat ** eta) * (edge_value ** gamma)
         return prob
 
     def edgevalue2adj(self, prior_mat=None):
@@ -397,8 +402,10 @@ class Graph_Updater():
                 weight_matrix = self.__swm_edgeprob(embedds)
             else:
                 recip_dis_pri = prior_mat ** yta
-                recip_dis = torch.where(torch.isinf(recip_dis_pri), torch.full_like(recip_dis_pri, 0), recip_dis_pri)
+                recip_dis = torch.where(torch.isinf(recip_dis_pri), torch.full_like(recip_dis_pri, 1), recip_dis_pri)
+                recip_dis = Linear_normalize(recip_dis)
                 weight_matrix = self.__swm_edgeprob(embedds) * recip_dis
+                weight_matrix = Linear_normalize(weight_matrix)
             randmat = torch.rand(weight_matrix.shape[0], weight_matrix.shape[0], dtype=torch.float32,
                                  device=self.dev)
             randmat = KeepHTM(randmat)
