@@ -33,7 +33,7 @@ if __name__ == '__main__':
     channels = 32
 
     # Here specify the device
-    device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:2' if torch.cuda.is_available() else "cpu")
 
     for n_sub in range(10):
         ##============================================================================================================##

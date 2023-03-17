@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # Here specify the device and load the model to device("EEG_GAT_moduled" is the model that devide
-    device = torch.device('cuda:2' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
     this_model = EEG_multiGAT(clip_length, n_class=3).to(device)
 
     ##================================================================================================================##
@@ -61,13 +61,13 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # initiate the logging and the optimizer
-    tra_wtr, tes_wtr = logging_Initiation("cross_subject_self", logroot='./log/self_multi_MG')
+    tra_wtr, tes_wtr = logging_Initiation("cross_subject_self", logroot='./log/self_multi_MG1')
     lossfunc = torch.nn.CrossEntropyLoss()
     optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5, weight_decay=1e-4)  # note, when initiating optimizer,
                                                                             # need to specify which parameter to apply
     best_test_acc = 0
 
-    curr_path = './saved_self_multi_MG/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
+    curr_path = './saved_self_multi_MG1/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
         list(map(lambda x: str(x), test_sub_list))) + '1'
     if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
     edge_idx_saved = curr_path + '/' + 'edge_index.pth'

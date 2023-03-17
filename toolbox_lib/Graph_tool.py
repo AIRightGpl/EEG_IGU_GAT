@@ -1,6 +1,7 @@
 ## Graph defination:
 
 import torch
+import torch.nn.functional as F
 import os.path as osp
 import math
 from copy import deepcopy
@@ -269,7 +270,6 @@ def visualize_data(attr: List[str], index: torch.Tensor, color):
 #     def clear_embeddings(self):
 #         self.embeddings.clear()
 
-
 class Graph_Updater():
     # Graph_updater is the Successor of the Graph_holder
 
@@ -338,7 +338,20 @@ class Graph_Updater():
         self.embedding = None
         self.edge_value = None
 
-    def __metric_edgeprob(self, embedds):
+    def rand_reconnect(self, probability_matrix: torch.Tensor) -> torch.Tensor:
+        randmat = torch.rand(probability_matrix.shape[0], probability_matrix.shape[0],
+                             dtype=torch.float32, device=self.dev)
+        randmat = KeepHTM(randmat)
+        mask = probability_matrix.ge(randmat)
+        expect_adj = higher_trangular_matrix_2_symmetric(mask.int())
+        return expect_adj
+
+    def weight_based_sparse(self, weight_matrix, threshold=0.6):
+        bimat = sparsematrix(weight_matrix, hreshold=threshold)
+        expect_adj = higher_trangular_matrix_2_symmetric(bimat.int())
+        return expect_adj
+
+    def metric_edgeprob(self, embedds):
         embedd1 = torch.unsqueeze(embedds, dim=1)
         embedd2 = torch.unsqueeze(embedds, dim=0)
         prob = torch.cosine_similarity(embedd1, embedd2, dim=-1)
@@ -353,10 +366,11 @@ class Graph_Updater():
         # would be a more sparse graph
         return prob
 
-    def __swm_edgeprob(self, embedds, para1=2, para2=0.01):
+    def swm_edgeprob(self, embedds, para1=2, para2=0.01):
         embedd1 = torch.unsqueeze(embedds, dim=1)
         embedd2 = torch.unsqueeze(embedds, dim=0)
         prob = para2 / (torch.norm(embedd1 - embedd2, p=2, dim=-1) ** para1 + para2)
+        # prob = para2 / (torch.cdist(embedd1, embedd2))
         return prob
 
     def __edr_edgeprob(self, dist_mat):
@@ -381,10 +395,7 @@ class Graph_Updater():
             weight_matrix = self.__egm_edgeprob(ed_value, prior_mat)
         else:
             print('unsupported edge to adj method')
-        randmat = torch.rand(weight_matrix.shape[0], weight_matrix.shape[0], dtype=torch.float32, device=self.device)
-        randmat = KeepHTM(randmat)
-        mask = weight_matrix.ge(randmat)
-        expect_adj = higher_trangular_matrix_2_symmetric(mask.int())
+        expect_adj = self.rand_reconnect(weight_matrix)
 
         # clear the storage
         self.clear_attr()
@@ -394,23 +405,27 @@ class Graph_Updater():
         assert self.embedding is not None, 'node embedding is empty, try \'append_node_embedding\' before computing'
         embedds = self.embedding.mean(dim=0)
         if self.meth == 'ms':
-            weight_matrix = self.__metric_edgeprob(embedds)
-            bimat = sparsematrix(weight_matrix)
-            expect_adj = higher_trangular_matrix_2_symmetric(bimat.int())
-        elif self.meth == 'rg':
             if prior_mat is None:
-                weight_matrix = self.__swm_edgeprob(embedds)
+                weight_matrix = self.metric_edgeprob(embedds)
             else:
                 recip_dis_pri = prior_mat ** yta
                 recip_dis = torch.where(torch.isinf(recip_dis_pri), torch.full_like(recip_dis_pri, 1), recip_dis_pri)
-                recip_dis = Linear_normalize(recip_dis)
-                weight_matrix = self.__swm_edgeprob(embedds) * recip_dis
-                weight_matrix = Linear_normalize(weight_matrix)
-            randmat = torch.rand(weight_matrix.shape[0], weight_matrix.shape[0], dtype=torch.float32,
-                                 device=self.dev)
-            randmat = KeepHTM(randmat)
-            mask = weight_matrix.ge(randmat)
-            expect_adj = higher_trangular_matrix_2_symmetric(mask.int())
+                recip_dis = Linear_normalize(recip_dis)  ## linear normalize will cause bias
+                recip_dis = torch.where((recip_dis == 0), torch.full_like(recip_dis, 1), recip_dis)
+                weight_matrix = self.metric_edgeprob(embedds) * recip_dis
+            # expect_adj = self.weight_based_sparse(weight_matrix)
+            expect_adj = self.rand_reconnect(weight_matrix)
+        elif self.meth == 'rg':
+            if prior_mat is None:
+                weight_matrix = self.swm_edgeprob(embedds)
+            else:
+                recip_dis_pri = prior_mat ** yta
+                recip_dis = torch.where(torch.isinf(recip_dis_pri), torch.full_like(recip_dis_pri, 1), recip_dis_pri)
+                recip_dis = Linear_normalize(recip_dis)   ## linear normalize will cause bias
+                recip_dis = torch.where((recip_dis == 0), torch.full_like(recip_dis, 1), recip_dis)
+                weight_matrix = self.swm_edgeprob(embedds) * recip_dis
+                # weight_matrix = Linear_normalize(weight_matrix)
+                expect_adj = self.rand_reconnect(weight_matrix)
         else:
             print('unsupported node embedding to adj method')
 

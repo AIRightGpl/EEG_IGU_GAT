@@ -18,6 +18,7 @@ class EEG_GAT_moduled(nn.Module):
 
         self.mcf_sequence = EEG_MCf(group_lst=[5, 5, 5], core_lst=[21, 15, 9])
         self.GATs_sequence = GATs(int(n_length / 5), [32, 16, 8, 4], n_head=8)   ## [60, 30, 15, 8] hidden_layer for 655
+        ## [32, 16, 8, 4] 2023-03-13 try [32, 4, 4, 4] to apply residual connection
         self.gru = nn.GRU(32, 32, 2, batch_first=True)
         self.ca1 = ChannelAttention(8, shrink_ratio=4)
         self.mlp_sequence = MLP(32, [16, 8, n_class])  ## [16, 8, 4] hidden_layer for 655 length

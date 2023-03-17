@@ -19,11 +19,12 @@ if __name__ == '__main__':
     from numpy import loadtxt
     from toolbox_lib.trainer_re import logging_Initiation, train_epoch, test_epoch
     from toolbox_lib.Graph_tool import Initiate_fullgraph, Initiate_clasgraph, Initiate_regulgraph, Graph_Updater
-    from dataloader.eegmotormovement_loader import Construct_Dataset_withinSubj, Create_TrainTest
+    # from dataloader.eegmotormovement_loader import Construct_Dataset_withinSubj, Create_TrainTest
     from dataloader.public_109ser_loader import form_onesub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_CA_GATS import EEG_GAT_moduled
+    # from models.EEG_CA_GATS import EEG_GAT_moduled  ## before 02.23
+    from models.EEG_CA_GATS_refine import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
     clip_length = 160
@@ -32,9 +33,9 @@ if __name__ == '__main__':
     batch_size = 200
 
     # Here specify the device
-    device = torch.device('cuda:1' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:3' if torch.cuda.is_available() else "cpu")
 
-    for n_sub in range(1, 110):
+    for n_sub in range(84, 110):  #1-28:'cuda:6' ; 28-56:'cuda:5' ; 56-84:'cuda:4' ; 84-110:'cuda:3'
         ##============================================================================================================##
         # load the model to device "EEG_GAT_moduled" is the model for person
 
@@ -55,15 +56,26 @@ if __name__ == '__main__':
         # different method for graph initiation
         ##------------------------------------------------------------------------------------------------------------##
         # edge_idx, _ = Initiate_graph(trainset, pt=0.75)  ## sparse rate = 0.75
-        # edge_idx, _ = Initiate_fullgraph(input_channels=64)
+        # edge_idx, adj_mat = Initiate_fullgraph(input_channels=64)
         # edge_idx, _ = Initiate_clasgraph(trainset, trainlab, method='maximum_spanning')
-        edge_idx, adj_mat = Initiate_regulgraph(input_channels=64, node_degree=14)
+        edge_idx, adj_mat = Initiate_regulgraph(input_channels=64, node_degree=12)
         ##------------------------------------------------------------------------------------------------------------##
 
         # load EEG channel distance matrix, and apply linear scale to distance matrix to assure each element of the mat
         # within range [0, 1], Thus, P(u, v) = D(u, v) * p(u, v) ranges from 0 to 1
+        ##------------------------------------------------------------------------------------------------------------##
+
         dist_atr = torch.tensor(loadtxt('64chans_distmat.csv', delimiter=','), device=device)
+        ##------------------------------------------------------------------------------------------------------------##
+        # attempt 1: linear projection from () to (0-1)
         dist_atr = (dist_atr - dist_atr.min()) / (dist_atr.max() - dist_atr.min())
+        # 该线性放缩导致会使得0-》0， 大于1的映射到1以内最大为1。
+        ##------------------------------------------------------------------------------------------------------------##
+        # We should not resize this dis_atr to 0-1, but consider the formular P(u,v)=E(u,v)^yta * K(u,v)^gamma, and
+        # yta=-1, so, should not resize this to 0-1 but need to resize to 1-1^+
+        # attempt 2: linear projection from (0-1) to (1 +)
+        # dist_atr = dist_atr / (dist_atr.min()) ## abandoned
+        # 该线性投影对于距离矩阵中为0的（自身对自身）距离对会导致INF的产生
 
         # apply dataloader to dataset
         train_set = Myset(trainset, trainlab)
@@ -73,9 +85,10 @@ if __name__ == '__main__':
 
         ##============================================================================================================##
         # Initiate the logging and the optimizer
-        tra_wtr, tes_wtr = logging_Initiation("subject{}testsize{}_".format(n_sub, test_size), logroot='./log/pub_rg2')
+        tra_wtr, tes_wtr = logging_Initiation("subject{}testsize{}_".format(n_sub, test_size),
+                                              logroot='./log/pub_s_rgf_lr-3/part4')
         lossfunc = torch.nn.CrossEntropyLoss()
-        optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5,
+        optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-3,
                                     weight_decay=1e-4)  # note, when initiating optimizer,
         # DROP rg1 results CUZ IT ACTUALLY DIDN'T UPDATE THE edge_idx AFTER COMPUTING NEW ADJACENT MATRIX
         # Graph_Updater initiate here
@@ -84,7 +97,7 @@ if __name__ == '__main__':
 
         # initiation for training
         best_test_acc = 0
-        curr_path = './saved_rg2/subject{}testsize{}'.format(n_sub, test_size)
+        curr_path = './saved_pub_ea_rgf_lr-3/part4/subject{}testsize{}'.format(n_sub, test_size)
         if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
         edge_idx_saved = curr_path + '/' + 'edge_index_ini.pth'
         graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
@@ -99,7 +112,7 @@ if __name__ == '__main__':
         # Training process
         for i in range(1000):
             # set flag for updating graph
-            flag = i % 10 == 0 and i != 0
+            flag = i % 10 == 0 #and i != 0
 
             # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
             # train_epoch apply model.train() and test_epoch apply model.eval()

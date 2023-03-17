@@ -21,10 +21,12 @@ if __name__ == '__main__':
     from numpy import loadtxt
     from toolbox_lib.trainer_re import logging_Initiation, train_epoch, test_epoch
     from toolbox_lib.Graph_tool import Initiate_fullgraph, Initiate_clasgraph, Initiate_regulgraph, Graph_Updater
+    # from dataloader.eegmotormovement_loader import Construct_Dataset_withinSubj, Create_TrainTest
     from dataloader.lowlimbmotorimagery_loader import form_onesub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_CA_GATS import EEG_GAT_moduled
+    # from models.EEG_CA_GATS import EEG_GAT_moduled  ## before 02.23
+    from models.EEG_CA_GATS_refine import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters and dataset parameter
     clip_length = 400
@@ -32,9 +34,10 @@ if __name__ == '__main__':
     test_size = 0.3
     batch_size = 100
     channels = 32
+    seq = True
 
     # Here specify the device
-    device = torch.device('cuda:0' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:7' if torch.cuda.is_available() else "cpu")
 
     for n_sub in range(10):
         ##============================================================================================================##
@@ -50,19 +53,25 @@ if __name__ == '__main__':
         ##============================================================================================================##
         # prepare the train and test dataset and create dataloader
 
-        trainset, trainlab, testset, testlab = form_onesub_set(n_sub, size=clip_length, step=clip_step)
+        trainset, trainlab, testset, testlab = form_onesub_set(n_sub, size=clip_length, step=clip_step, sequence=seq)
         # different method for graph initiation
         ##------------------------------------------------------------------------------------------------------------##
         # edge_idx, _ = Initiate_graph(trainset, pt=0.75)  ## sparse rate = 0.75
-        # edge_idx, _ = Initiate_fullgraph(input_channels=64)
+        edge_idx, adj_mat = Initiate_fullgraph(input_channels=32)
         # edge_idx, _ = Initiate_clasgraph(trainset, trainlab, method='maximum_spanning')
-        edge_idx, adj_mat = Initiate_regulgraph(input_channels=channels, node_degree=8)
+        # edge_idx, adj_mat = Initiate_regulgraph(input_channels=channels, node_degree=8)
         ##------------------------------------------------------------------------------------------------------------##
 
         # load EEG channel distance matrix, and apply linear scale to distance matrix to assure each element of the mat
-        # within range [0, 1], Thus, P(u, v) = D(u, v) * p(u, v) ranges from 0 to 1
+        # within range [0, 1], Thus, P(u, v) = D(u, v) * p(u, v) ranges from 0 to 1 ----wrong
         dist_atr = torch.tensor(loadtxt('32chans_distmat.csv', delimiter=','), device=device)
         dist_atr = (dist_atr - dist_atr.min()) / (dist_atr.max() - dist_atr.min())
+        ##============================================================================================================##
+        # We should not resize this dis_atr to 0-1, but consider the formular P(u,v)=E(u,v)^yta * K(u,v)^gamma, and
+        # yta=-1, so, should not resize this to 0-1 but need to resize to 1-1^+
+        ######  dist_atr = dist_atr / (dist_atr.min())  ## This is a very rough method to make dist_atr over 1, and
+        ##  THE MINIMAL OF DISTANCE IN DIST_MATRIX IS 0 !!!!!, THUS AFTER RESIZE IT WOULD BE INF and thus apply yta=-1
+        ##  would be 0 and no random element being below 0, THUS 0 EDGES.
 
         train_set = Myset(trainset, trainlab)
         test_set = Myset(testset, testlab)
@@ -71,9 +80,9 @@ if __name__ == '__main__':
 
         ##============================================================================================================##
         # initiate the logging and the optimizer
-        tra_wtr, tes_wtr = logging_Initiation("subject{}_".format(n_sub), logroot='./log/self_rg1')
+        tra_wtr, tes_wtr = logging_Initiation("subject{}_".format(n_sub), logroot='./log/self_rgfRGru1_lr-3')
         lossfunc = torch.nn.CrossEntropyLoss()
-        optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-4,
+        optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-3,
                                     weight_decay=1e-4)  # note, when initiating optimizer,
         # need to specify which parameter to apply
         best_test_acc = 0
@@ -85,7 +94,7 @@ if __name__ == '__main__':
 
         # initiation for training
         best_test_acc = 0
-        curr_path = './saved_self_rg1/subject{}testsize{}'.format(n_sub, test_size)
+        curr_path = './saved_self_rgfRGru1_lr-3/subject{}testsize{}'.format(n_sub, test_size)
         if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
         edge_idx_saved = curr_path + '/' + 'edge_index_ini.pth'
         graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
@@ -98,16 +107,16 @@ if __name__ == '__main__':
 
         ##============================================================================================================##
         # begin training, note
-        for i in range(1200):
+        for i in range(500):
             # set flag for updating graph
-            flag = i % 10 == 0 and i != 0
+            flag = i % 10 == 0 #and i != 0
 
             # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
             # train_epoch is the model.train() and test_epoch is in model.eval()
             attention_weight = train_epoch(this_model, train_loader, edge_idx, lossfunc, optmizer, device, n_class=3,
-                                           n_chan=channels)
+                                           n_chan=channels, sequence=seq)
             train_acc, train_loss = test_epoch(this_model, train_loader, edge_idx, lossfunc, device, n_class=3,
-                                               n_chan=channels, flag=flag, handle=graph_base)
+                                               n_chan=channels, flag=flag, handle=graph_base, sequence=seq)
 
             # write train result to logging
             print("train_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), train_loss,
@@ -120,7 +129,7 @@ if __name__ == '__main__':
             ##--------------------------------------------------------------------------------------------------------##
             # test session, test_epoch applying to test_loader
             test_acc, test_loss = test_epoch(this_model, test_loader, edge_idx, lossfunc, device, n_class=3,
-                                             n_chan=channels)
+                                             n_chan=channels, sequence=seq)
 
             # write test result to logging
             print("test_result - epoch:{} - time:{} - loss:{} - acc:{:.4%}\n".format(i, time.time(), test_loss,
@@ -146,11 +155,12 @@ if __name__ == '__main__':
             if test_acc >= best_test_acc:
                 best_test_acc = test_acc
                 tim = time.strftime("%Y-%m-%d %H_%M_%S", time.localtime())
-                all_state = {'model': {'mcf': this_model.mcf_sequence.state_dict(),
-                                       'gat': this_model.GATs_sequence.state_dict(),
-                                       'mlp': this_model.mlp_sequence.state_dict()},
-                             'optimizer': optmizer.state_dict(),
-                             'n_epoch': i}
+                # all_state = {'model': {'mcf': this_model.mcf_sequence.state_dict(),
+                #                        'gat': this_model.GATs_sequence.state_dict(),
+                #                        'mlp': this_model.mlp_sequence.state_dict()},
+                #              'optimizer': optmizer.state_dict(),
+                #              'n_epoch': i}
+                all_state = {'model': this_model.state_dict()}
                 torch.save(obj=all_state, f=curr_path + '/' + 'bestmodel' + '.pth')
                 if flag:
                     torch.save(obj=all_state, f=curr_path + '/' + tim + '.pth')

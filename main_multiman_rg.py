@@ -24,7 +24,7 @@ if __name__ == '__main__':
     from dataloader.public_109ser_loader import form_multsub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_CA_GATS import EEG_GAT_moduled
+    from models.EEG_CA_GATS_refine import EEG_GAT_moduled
     ##================================================================================================================##
     # Here set the clip parameters
     clip_length = 160
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # Here specify the device and load the model to device("EEG_GAT_moduled" is the model that devide
-    device = torch.device('cuda:1' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:3' if torch.cuda.is_available() else "cpu")
     this_model = EEG_GAT_moduled(clip_length).to(device)
 
     ##================================================================================================================##
@@ -44,20 +44,28 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # prepare the train and test dataset and create dataloader
-    trai_sub_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    test_sub_list = [10, 11, 12, 13]
+    trai_sub_list = [103, 32, 40, 22, 34, 95, 94, 35, 6, 55, 3, 99, 68, 16, 69, 11, 105, 54, 109, 30]
+    test_sub_list = [45, 77, 60, 74, 78]
+    trai_sub_list.sort()
+    test_sub_list.sort()
     trainset, trainlab, testset, testlab = form_multsub_set(trai_sub_list, test_sub_list, size=clip_length,
                                                             step=clip_step)
 
     # different method for graph initiation
     ##------------------------------------------------------------------------------------------------------------##
     # edge_idx, _ = Initiate_graph(trainset, pt=0.75)  ## sparse rate = 0.75
-    # edge_idx, _ = Initiate_fullgraph(input_channels=64)
+    edge_idx, adj_mat = Initiate_fullgraph(input_channels=64)
     # edge_idx, _ = Initiate_clasgraph(trainset, trainlab, method='maximum_spanning')
-    edge_idx, adj_mat = Initiate_regulgraph(input_channels=64, node_degree=14)
+    # edge_idx, adj_mat = Initiate_regulgraph(input_channels=64, node_degree=14)
     ##------------------------------------------------------------------------------------------------------------##
 
     dist_atr = torch.tensor(loadtxt('64chans_distmat.csv', delimiter=','), device=device)
+    # dist_atr = (dist_atr - dist_atr.min()) / (dist_atr.max() - dist_atr.min())
+    ##============================================================================================================##
+    # We should not resize this dis_atr to 0-1, but consider the formular P(u,v)=E(u,v)^yta * K(u,v)^gamma, and
+    # yta=-1, so, should not resize this to 0-1 but need to resize to 1-1^+
+    dist_atr = dist_atr / (dist_atr.min())
+
     train_set = Myset(trainset, trainlab)
     test_set = Myset(testset, testlab)
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -65,15 +73,15 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # initiate the logging, graph_updater and the optimizer
-    tra_wtr, tes_wtr = logging_Initiation("crosssub1-9train_10-13test", logroot='./log/multi_rg1')
+    tra_wtr, tes_wtr = logging_Initiation("crosssub1-9train_10-13test", logroot='./log/public_rgfR_cross_lr-2')
     lossfunc = torch.nn.CrossEntropyLoss()
-    optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-6, weight_decay=1e-4)  # note, when initiating optimizer,
+    optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-2, weight_decay=1e-4)  # note, when initiating optimizer,
                                                                             # need to specify which parameter to apply
     best_test_acc = 0
     graph_base = Graph_Updater(device, method='rg')
     update_count = 0
 
-    curr_path = './saved_multi_rg1/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
+    curr_path = './saved_pub_rgfR_cross_lr-2/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
         list(map(lambda x: str(x), test_sub_list)))
     if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
     edge_idx_saved = curr_path + '/' + 'edge_index_init.pth'
@@ -86,10 +94,10 @@ if __name__ == '__main__':
         torch.save(obj=graph_ini, f=graph_ini_saved)
     ##================================================================================================================##
     # begin training, note
-    for i in range(800):
+    for i in range(1200):
         # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
         # train_epoch is the model.train() and test_epoch is in model.eval()
-        flag = i % 10 == 0 #and i > 0
+        flag = i % 10 == 0 and i > 0
         attention_weight = train_epoch(this_model, train_loader, edge_idx, lossfunc, optmizer, device)
         train_acc, train_loss = test_epoch(this_model, train_loader, edge_idx, lossfunc, device,
                                                           flag=flag, handle=graph_base)

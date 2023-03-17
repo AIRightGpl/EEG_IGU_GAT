@@ -23,7 +23,8 @@ if __name__ == '__main__':
     from dataloader.lowlimbmotorimagery_loader import form_multsub_set
     from modules.Mydataset import Myset
     from torch.utils.data import DataLoader
-    from models.EEG_GAT_modules import EEG_GAT_moduled
+    from models.EEG_CA_GATS_refine import EEG_GAT_moduled
+    from models.EEGNet import EEGNet
     ##================================================================================================================##
     # Here set the clip parameters
     clip_length = 400
@@ -33,8 +34,9 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # Here specify the device and load the model to device("EEG_GAT_moduled" is the model that devide
-    device = torch.device('cuda:2' if torch.cuda.is_available() else "cpu")
-    this_model = EEG_GAT_moduled(clip_length, n_class=3).to(device)
+    device = torch.device('cuda:5' if torch.cuda.is_available() else "cpu")
+    # this_model = EEG_GAT_moduled(clip_length, n_class=3).to(device)
+    this_model = EEGNet(125, n_class=3).to(device)
 
     ##================================================================================================================##
     # try to load the parameter from pretrained model
@@ -55,13 +57,13 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # initiate the logging and the optimizer
-    tra_wtr, tes_wtr = logging_Initiation("cross_subject_self", logroot='./log/self_full_cross_C_1')
+    tra_wtr, tes_wtr = logging_Initiation("cross_subject_self", logroot='./log/self_crossEEGN_f_lr-4')
     lossfunc = torch.nn.CrossEntropyLoss()
-    optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5, weight_decay=1e-4)  # note, when initiating optimizer,
+    optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-4, weight_decay=1e-4)  # note, when initiating optimizer,
                                                                             # need to specify which parameter to apply
     best_test_acc = 0
 
-    curr_path = './saved_selffullcross_C_1/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
+    curr_path = './saved_self_crossEEGN_f_lr-4/tra' + ''.join(list(map(lambda x: str(x), trai_sub_list))) + 'tes' + ''.join(
         list(map(lambda x: str(x), test_sub_list))) + '1'
     if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
     edge_idx_saved = curr_path + '/' + 'edge_index.pth'
@@ -70,7 +72,7 @@ if __name__ == '__main__':
         torch.save(obj=graph, f=edge_idx_saved)
     ##================================================================================================================##
     # begin training, note
-    for i in range(1200):
+    for i in range(1000):
         # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
         # train_epoch is the model.train() and test_epoch is in model.eval()
         attention_weight = train_epoch(this_model, train_loader, edge_idx, lossfunc, optmizer, device, n_class=3, n_chan=channels)
@@ -99,11 +101,12 @@ if __name__ == '__main__':
         if test_acc >= best_test_acc:
             best_test_acc = test_acc
             tim = time.strftime("%Y-%m-%d %H_%M_%S", time.localtime())
-            all_state = {'model': {'mcf': this_model.mcf_sequence.state_dict(),
-                                   'gat': this_model.GATs_sequence.state_dict(),
-                                   'mlp': this_model.mlp_sequence.state_dict()},
-                         'optimizer': optmizer.state_dict(),
-                         'n_epoch': i}
+            # all_state = {'model': {'mcf': this_model.mcf_sequence.state_dict(),
+            #                        'gat': this_model.GATs_sequence.state_dict(),
+            #                        'mlp': this_model.mlp_sequence.state_dict()},
+            #              'optimizer': optmizer.state_dict(),
+            #              'n_epoch': i}
+            all_state = {'model': this_model.state_dict()}
             torch.save(obj=all_state, f=curr_path + '/' + 'bestmodel' + '.pth')
             if i % 10 == 0 and i > 0:
                 torch.save(obj=all_state, f=curr_path + '/' + tim + '.pth')

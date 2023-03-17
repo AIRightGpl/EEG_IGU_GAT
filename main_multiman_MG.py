@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     ##================================================================================================================##
     # Here specify the device and load the model to device("EEG_GAT_moduled" is the model that devide
-    device = torch.device('cuda:1' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:2' if torch.cuda.is_available() else "cpu")
     this_model = EEG_multiGAT(clip_length).to(device)
 
     ##================================================================================================================##
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     # initiate the logging, graph_updater and the optimizer
     tra_wtr, tes_wtr = logging_Initiation("crosssub1-9train_10-13test", logroot='./log/multi_MG')
     lossfunc = torch.nn.CrossEntropyLoss()
-    optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-6, weight_decay=1e-4)  # note, when initiating optimizer,
+    optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5, weight_decay=1e-4)  # note, when initiating optimizer,
                                                                             # need to specify which parameter to apply
     best_test_acc = 0
 

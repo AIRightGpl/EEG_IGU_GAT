@@ -73,14 +73,14 @@ if __name__ == '__main__':
         ##============================================================================================================##
         # Initiate the logging and the optimizer
         tra_wtr, tes_wtr = logging_Initiation("subject{}testsize{}_".format(n_sub, test_size),
-                                              logroot='./log/pub_MG1_maxspanning')
+                                              logroot='./log/pub_mg2_maxspanning')
         lossfunc = torch.nn.CrossEntropyLoss()
         optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-5,
                                     weight_decay=1e-4)  # note, when initiating optimizer,
 
         # initiation for training
         best_test_acc = 0
-        curr_path = './saved_MG1_maxspanning/subject{}testsize{}'.format(n_sub, test_size)
+        curr_path = './saved_mg2_maxspanning/subject{}testsize{}'.format(n_sub, test_size)
         if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
         edge_idx_saved = curr_path + '/' + 'edge_index_ini.pth'
         # graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
