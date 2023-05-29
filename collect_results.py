@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from toolbox_lib.Recursive_travel import walkthroRecur
 
-PATH = './log/self_EEGNet_sin_lr-4'
+PATH = './log/self_rgf0412_lr-2wd-3/2023_04_13'
 
 
 def init_glob_dict():
@@ -42,12 +42,12 @@ if __name__ == '__main__':
     filted_filename_dict = find_test_result(PATH)
     results = []
     # for key, value in enumerate(filted_filename_dict):   ## for public 1-110   for self 10
-    for i in range(10):
+    for i in range(10):    #1, 110
         # max_acc = collect_data(filted_filename_dict[value])
         max_acc = collect_data(filted_filename_dict[i])
         results.append(max_acc)
     writes = np.array(results).T
 
-    np.savetxt('./self_within_EEGNet_lr-4.csv', writes, delimiter=',')
+    np.savetxt('./sel_sinrg_0413_lr-2wd-3.csv', writes, delimiter=',')
 
     print('done')

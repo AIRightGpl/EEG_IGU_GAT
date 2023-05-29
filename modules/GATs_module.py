@@ -13,10 +13,12 @@ class GATs(nn.Module):
             if i == 0:
                 exec('self.GAT{} = GATConv(n_nodeFeatures, Ghidd_lst[{}], heads=n_head)'.format(i + 1, i))
             else:
-                exec('self.GAT{} = GATConv(Ghidd_lst[{}]*n_head, Ghidd_lst[{}], heads=n_head)'.format(i + 1, i - 1, i))
+                exec('self.GAT{} = GATConv(Ghidd_lst[{}]*n_head, Ghidd_lst[{}], heads=n_head, dropout=0.2)'.format(i + 1, i - 1, i))
             # exec('self.gbn{} = GraphNorm(Ghidd_lst[{}]*n_head)'.format(i + 1, i))
             # exec('self.prlu_{} = nn.PReLU()'.format(i + 1))
         self.n_layers = len(Ghidd_lst)
+        # self.gat1 = GATConv(dropout=) ## dropout in GAT
+        # self.drop =
 
 
     def forward(self, x_spars, edge_index):
@@ -29,16 +31,17 @@ class GATs(nn.Module):
         #     exec('x_spars = self.gbn{}(x_spars)'.format(i + 1))
         #     exec('x_spars = self.prlu_{}(x_spars)'.format(i + 1))
         x_geb = self.GAT1(x_spars, edge_index)
-        # x_geb = F.dropout(x_geb, )
+        # x_ge1 = F.dropout(x_geb, p=0.3, training=self.training)
         # x_geb = self.gbn1(x_geb)
         # x_geb = self.prlu_1(x_geb)
-        x_geb = self.GAT2(x_geb, edge_index)
+        x_geb, at_w = self.GAT2(x_geb, edge_index, return_attention_weights=True)
         # x_geb = self.gbn2(x_geb)
         # x_geb = self.prlu_2(x_geb)
-        x_geb = self.GAT3(x_geb, edge_index)
+        # x_geb = self.GAT3(x_geb, edge_index)
+        # x_geb = self.
         # x_geb = self.gbn3(x_geb)
         # x_geb = self.prlu_3(x_geb)
-        x_geb, at_w = self.GAT4(x_geb, edge_index, return_attention_weights=True)
+        # x_geb, at_w = self.GAT4(x_geb, edge_index, return_attention_weights=True)
         # x_geb = self.gbn4(x_geb)
         x_geb = x_geb + x_spars   # res here
         # x_geb = self.prlu_4(x_geb)

@@ -9,13 +9,17 @@ from .Graph_tool import AdjMat2pygedge_index
 
 
 def train_epoch(model, trainset: torch.utils.data.DataLoader, edge_idx, lossfunc, optimizer, device,
-                n_class=4, n_chan=64):
+                n_class=4, n_chan=64, sequence=False):
     model.train()
     for index, data in enumerate(trainset):
         eegdata = data[0].to(device)
-        bz, _, _ = eegdata.shape
+        if sequence:
+            bz, tp, _, _= eegdata.shape
+            bz = bz * tp
+        else:
+            bz, _, _ = eegdata.shape
         edge_index, batch = replicate_graph_batch(edge_idx, bz, device, node_num=n_chan)
-        out, attention_weight = model(eegdata, edge_index, batch)
+        out, attention_weight = model(eegdata, edge_index, batch, sequence=sequence)
         # batch-size=200 and edge_idx(2,896) edge_index(2,179200) attention_weight(2)(2,192000)(192000,4), cuz self-loop
         label = nn.functional.one_hot((data[1] - 1).long(), n_class).to(device)  ## 4  #torch.tensor(data[1] - 1, dtype=torch.long)
         # label = (data.y-1).long()
@@ -27,7 +31,7 @@ def train_epoch(model, trainset: torch.utils.data.DataLoader, edge_idx, lossfunc
 
 
 def test_epoch(model, testset: torch.utils.data.DataLoader, edge_idx, lossfunc, device, n_class=4, n_chan=64, flag=False
-               , handle=None):
+               , handle=None, sequence=False):
     model.eval()
 
     correct = 0
@@ -35,18 +39,23 @@ def test_epoch(model, testset: torch.utils.data.DataLoader, edge_idx, lossfunc, 
     with torch.no_grad():
         for _, data in enumerate(testset):
             eegdata = data[0].to(device)
-            bz, _, _ = eegdata.shape
-            edge_index, batch = replicate_graph_batch(edge_idx, bz, device, node_num=n_chan)
+            if sequence:
+                bz, tp, _, _ = eegdata.shape
+                frg_bz = bz * tp
+            else:
+                bz, _, _ = eegdata.shape
+                frg_bz = bz
+            edge_index, batch = replicate_graph_batch(edge_idx, frg_bz, device, node_num=n_chan)
             # if use_graph.device not in ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3']:
             #     edge_index = use_graph.to(self.device)
-            out, attribute = model(eegdata, edge_index, batch)
+            out, attribute = model(eegdata, edge_index, batch, sequence=sequence)
 
             # Here to make append the embeddings or edge_values
             if handle is not None and flag:
                 if handle.meth in ['sg', 'EDR', 'gm']:
-                    handle.append_edge_value(attribute, bz)
+                    handle.append_edge_value(attribute, frg_bz)
                 else:
-                    handle.append_node_embedding(attribute, bz)
+                    handle.append_node_embedding(attribute, frg_bz)
             # GAT in pyg will compute self-loop attention weight so for 0.75 there be 3088 edges
             pred = out.argmax(dim=1)
             label = nn.functional.one_hot((data[1] - 1).long(), n_class).to(device)

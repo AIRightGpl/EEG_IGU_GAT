@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="qinyz@113.54.159.61:7890" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="uestc_Changhong_Mianyang" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
     <option name="confirmBeforeUploading" value="false" />
     <serverData>
       <paths name="qinyz@113.54.159.61:7890">
@@ -15,6 +15,32 @@
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
+        </serverdata>
+      </paths>
+      <paths name="qinyz@uestc503b.mufun.fun:7890 password">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="uestc@120.25.121.173:60064 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/uestc/Brain_EEGCN" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="uestc_Changhong_Mianyang">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/Brain_EEGCN" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/datasets/eeg-motor-movementimagery-dataset-1.0.0" />
+            <excludedPath local="true" path="$PROJECT_DIR$/datasets/random_noisy_channel" />
+            <excludedPath local="true" path="$PROJECT_DIR$/datasets/hemiplegic_subjects" />
+          </excludedPaths>
         </serverdata>
       </paths>
     </serverData>

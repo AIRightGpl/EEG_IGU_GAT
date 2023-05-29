@@ -19,6 +19,7 @@ class EEG_GAT_moduled(nn.Module):
         self.mcf_sequence = EEG_MCf(group_lst=[5, 5, 5], core_lst=[21, 15, 9])
         npl = int(n_length / 5)
         nga = int(npl / n_head)
+        self.trans
         self.GATs_sequence = GATs(npl, [8, nga], n_head=n_head)   ## [60, 30, 15, 8] hidden_layer for 655
         ## [32, 16, 8, nga] 2023-03-23 which has too much layers (less connect prob to better performance
         ## [32, 16, 8, 4] 2023-03-13 try [32, 4, 4, 4] to apply residual connection

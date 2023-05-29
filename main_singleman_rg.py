@@ -33,9 +33,9 @@ if __name__ == '__main__':
     batch_size = 200
 
     # Here specify the device
-    device = torch.device('cuda:3' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:6' if torch.cuda.is_available() else "cpu")
 
-    for n_sub in range(84, 110):  #1-28:'cuda:6' ; 28-56:'cuda:5' ; 56-84:'cuda:4' ; 84-110:'cuda:3'
+    for n_sub in range(1, 28):  #1-28:'cuda:6' ; 28-56:'cuda:5' ; 56-84:'cuda:4' ; 84-110:'cuda:3'
         ##============================================================================================================##
         # load the model to device "EEG_GAT_moduled" is the model for person
 
@@ -86,10 +86,10 @@ if __name__ == '__main__':
         ##============================================================================================================##
         # Initiate the logging and the optimizer
         tra_wtr, tes_wtr = logging_Initiation("subject{}testsize{}_".format(n_sub, test_size),
-                                              logroot='./log/pub_s_rgf_lr-3/part4')
+                                              logroot='./log/pub_s_rgf_lr-3-3_0324/part1')
         lossfunc = torch.nn.CrossEntropyLoss()
         optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-3,
-                                    weight_decay=1e-4)  # note, when initiating optimizer,
+                                    weight_decay=1e-3)  # note, when initiating optimizer,
         # DROP rg1 results CUZ IT ACTUALLY DIDN'T UPDATE THE edge_idx AFTER COMPUTING NEW ADJACENT MATRIX
         # Graph_Updater initiate here
         graph_base = Graph_Updater(device, method='rg')
@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
         # initiation for training
         best_test_acc = 0
-        curr_path = './saved_pub_ea_rgf_lr-3/part4/subject{}testsize{}'.format(n_sub, test_size)
+        curr_path = './saved_pub_s_rgf_lr-3-3_0324/part1/subject{}testsize{}'.format(n_sub, test_size)
         if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
         edge_idx_saved = curr_path + '/' + 'edge_index_ini.pth'
         graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
@@ -112,7 +112,7 @@ if __name__ == '__main__':
         # Training process
         for i in range(1000):
             # set flag for updating graph
-            flag = i % 10 == 0 #and i != 0
+            flag = i % 10 == 0 and i != 0
 
             # train session, train epoch to back-propagate the grad and update parameter in both model and optimizer
             # train_epoch apply model.train() and test_epoch apply model.eval()

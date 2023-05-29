@@ -34,6 +34,7 @@ def Initiate_fullgraph(input_channels: int = 64) -> torch.Tensor:
 
 
 def Initiate_graph(lst_samples: List[torch.Tensor], pt=0.75, self_loop=True, method='proportional') -> torch.Tensor:
+    assert method in ['proportional', 'above_average', 'absolute'], 'Unsupported sparse method'
     stacked = []
     for i, data in enumerate(lst_samples):
         corrmat = torch.corrcoef(data)
@@ -168,15 +169,18 @@ def sparsematrix(corrmat: torch.Tensor, threshold_method='proportional', thresho
     [a, b] = corrmat.shape
     assert (a == b), "correlation matrix must be a square matrix"
     indice, n_edges = sort_matele(corrmat)
+    baseMask = torch.where(drop_index < indice, torch.ones(a, b), torch.zeros(a, b))
 
     if threshold_method == 'proportional':
         propthres = round(n_edges * threshold)
-        baseMask = torch.where(drop_index < indice, torch.ones(a, b), torch.zeros(a, b))
         sparseMask = torch.where(indice <= propthres, baseMask, torch.zeros(a, b))
 
     elif threshold_method == 'absolute':
         absthres = threshold
-        baseMask = torch.where(drop_index < indice, torch.ones(a, b), torch.zeros(a, b))
+        sparseMask = torch.where(absthres <= corrmat, baseMask, torch.zeros(a, b))
+
+    elif threshold_method == 'above_average':
+        absthres = torch.mean(corrmat)
         sparseMask = torch.where(absthres <= corrmat, baseMask, torch.zeros(a, b))
 
     elif threshold_method == 'maximum_spanning':
@@ -288,6 +292,7 @@ class Graph_Updater():
         #                   The probability of reconnecting nodes p_i,j = epsilon/(|hi-hj|^delta+epsilon) see reference
         #                   of paper above  (From which world is your graph. Advances in Neural Information Processing
         #                   Systems, vol. 30, pp. 1469–1479.)
+        #                   # 2023.05 update: new 'rg' apply 'gm' method P(u,v)= E(u,v)^η x K(u,v)^γ
         #            'ms': Metric Sparse method, a straight-forward method based on cosine similarity and sparse method,
         #                   (like computing PLV from EEG, Here compute cosine similarity from graph embedding)
         #            'sg': Proposed Stepped Generated method, following the principles:(1) minimal wiring cost ;
@@ -366,7 +371,7 @@ class Graph_Updater():
         # would be a more sparse graph
         return prob
 
-    def swm_edgeprob(self, embedds, para1=2, para2=0.01):
+    def swm_edgeprob(self, embedds, para1=2, para2=0.005):  ##para2=0.01(0322)  ##para2=0.005(0323)
         embedd1 = torch.unsqueeze(embedds, dim=1)
         embedd2 = torch.unsqueeze(embedds, dim=0)
         prob = para2 / (torch.norm(embedd1 - embedd2, p=2, dim=-1) ** para1 + para2)
@@ -454,5 +459,10 @@ if __name__ == '__main__':
     # new, batch = replicate_graph_batch(edge_idx, 6)
     # print('done')
     ##
-    test = Initiate_regulgraph(64, 12)
-    print('done')
+    # test = Initiate_regulgraph(64, 12)
+    # print('done')
+
+    from dataloader.public_109ser_loader import form_onesub_set
+    trainset, trainlab, testset, testlab = form_onesub_set(9, size=160, step=20)
+    edge_idx, _ = Initiate_graph(trainset, method='above_average')
+    print('stop')

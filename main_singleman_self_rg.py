@@ -34,10 +34,10 @@ if __name__ == '__main__':
     test_size = 0.3
     batch_size = 100
     channels = 32
-    seq = True
+    seq = False
 
     # Here specify the device
-    device = torch.device('cuda:7' if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda:5' if torch.cuda.is_available() else "cpu")
 
     for n_sub in range(10):
         ##============================================================================================================##
@@ -57,9 +57,9 @@ if __name__ == '__main__':
         # different method for graph initiation
         ##------------------------------------------------------------------------------------------------------------##
         # edge_idx, _ = Initiate_graph(trainset, pt=0.75)  ## sparse rate = 0.75
-        edge_idx, adj_mat = Initiate_fullgraph(input_channels=32)
+        # edge_idx, adj_mat = Initiate_fullgraph(input_channels=32)
         # edge_idx, _ = Initiate_clasgraph(trainset, trainlab, method='maximum_spanning')
-        # edge_idx, adj_mat = Initiate_regulgraph(input_channels=channels, node_degree=8)
+        edge_idx, adj_mat = Initiate_regulgraph(input_channels=channels, node_degree=8)
         ##------------------------------------------------------------------------------------------------------------##
 
         # load EEG channel distance matrix, and apply linear scale to distance matrix to assure each element of the mat
@@ -80,10 +80,10 @@ if __name__ == '__main__':
 
         ##============================================================================================================##
         # initiate the logging and the optimizer
-        tra_wtr, tes_wtr = logging_Initiation("subject{}_".format(n_sub), logroot='./log/self_rgfRGru1_lr-3')
+        tra_wtr, tes_wtr = logging_Initiation("subject{}_".format(n_sub), logroot='./log/self_rgf0412_lr-2wd-3')
         lossfunc = torch.nn.CrossEntropyLoss()
-        optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-3,
-                                    weight_decay=1e-4)  # note, when initiating optimizer,
+        optmizer = torch.optim.Adam(this_model.parameters(), lr=1e-2,
+                                    weight_decay=1e-3)  # note, when initiating optimizer,
         # need to specify which parameter to apply
         best_test_acc = 0
 
@@ -94,7 +94,8 @@ if __name__ == '__main__':
 
         # initiation for training
         best_test_acc = 0
-        curr_path = './saved_self_rgfRGru1_lr-3/subject{}testsize{}'.format(n_sub, test_size)
+        date = time.strftime('%Y_%m_%d', time.localtime())
+        curr_path = './saved_self_rgf0412_lr-2wd-3/' + date + '/subject{}testsize{}'.format(n_sub, test_size)
         if not os.path.exists(curr_path): os.makedirs(curr_path, exist_ok=True)
         edge_idx_saved = curr_path + '/' + 'edge_index_ini.pth'
         graph_ini_saved = curr_path + '/' + 'graph_Ini.pth'
@@ -107,7 +108,7 @@ if __name__ == '__main__':
 
         ##============================================================================================================##
         # begin training, note
-        for i in range(500):
+        for i in range(1000):
             # set flag for updating graph
             flag = i % 10 == 0 #and i != 0
 
